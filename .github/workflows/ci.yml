@@ -1,0 +1,120 @@
+name: CI Docker Compose
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  DOCKER_USER: ${{ vars.DOCKER_USER }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Login no Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      - name: Exemplo 1 - docker compose build
+        working-directory: exemplo1
+        run: docker compose build
+
+      - name: Exemplo 1 - docker compose push
+        working-directory: exemplo1
+        run: docker compose push calculadora-app
+
+      - name: Exemplo 2 - docker compose build (frontend + backend)
+        working-directory: exemplo2
+        run: docker compose build
+
+      - name: Exemplo 2 - docker compose push
+        working-directory: exemplo2
+        run: docker compose push frontend backend
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Login no Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      # ---------- Exemplo 1: app + serviço vizinho ----------
+      - name: Exemplo 1 - docker compose up
+        working-directory: exemplo1
+        run: |
+          docker compose pull
+          docker compose up -d --no-build
+          docker compose ps
+
+      - name: Exemplo 1 - ping pelo nome do serviço (sem IP)
+        working-directory: exemplo1
+        run: docker compose exec -T calculadora-app ping -c 4 servico-vizinho
+
+      - name: Exemplo 1 - testes unitários dentro do container
+        working-directory: exemplo1
+        run: docker compose exec -T calculadora-app npm test
+
+      - name: Exemplo 1 - docker compose down
+        if: always()
+        working-directory: exemplo1
+        run: docker compose down
+
+      # ---------- Exemplo 2: frontend + backend + banco ----------
+      - name: Exemplo 2 - docker compose up
+        working-directory: exemplo2
+        run: |
+          docker compose pull
+          docker compose up -d --no-build --wait
+          docker compose ps
+
+      - name: Exemplo 2 - teste de integração (Front -> API -> Postgres)
+        working-directory: exemplo2
+        run: |
+          for i in $(seq 1 20); do curl -sf http://localhost:8080/api/tarefas && break; sleep 2; done
+          curl -sf -X POST http://localhost:8080/api/tarefas \
+            -H "Content-Type: application/json" -d '{"titulo":"Tarefa criada pelo pipeline"}'
+          echo
+          curl -sf http://localhost:8080/api/tarefas | tee resposta.json
+          grep -q "Tarefa criada pelo pipeline" resposta.json
+          curl -sf http://localhost:8080/ | grep -q "Lista de Tarefas"
+
+      - name: Exemplo 2 - logs e docker compose down
+        if: always()
+        working-directory: exemplo2
+        run: |
+          docker compose logs
+          docker compose down
+
+      # ---------- Exemplo 3: WordPress + MariaDB ----------
+      - name: Exemplo 3 - docker compose up
+        working-directory: exemplo3
+        run: docker compose up -d
+
+      - name: Exemplo 3 - WordPress respondendo
+        working-directory: exemplo3
+        run: |
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/ || true)
+            echo "HTTP $code"
+            if [ "$code" = "302" ] || [ "$code" = "200" ]; then exit 0; fi
+            sleep 3
+          done
+          docker compose logs
+          exit 1
+
+      - name: Exemplo 3 - docker compose down
+        if: always()
+        working-directory: exemplo3
+        run: docker compose down -v

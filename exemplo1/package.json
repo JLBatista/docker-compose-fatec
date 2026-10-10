@@ -1,0 +1,10 @@
+{
+  "name": "calculadora-app",
+  "version": "1.0.0",
+  "description": "Projeto de exemplo para a aula de Docker II - CI/CD",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  }
+}

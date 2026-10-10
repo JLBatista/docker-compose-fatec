@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lista de Tarefas</title>
+  <style>
+    body { font-family: sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; }
+    form { display: flex; gap: 8px; }
+    input { flex: 1; padding: 8px; }
+    button { padding: 8px 16px; }
+    li { padding: 6px 0; border-bottom: 1px solid #ddd; }
+  </style>
+</head>
+<body>
+  <h1>Lista de Tarefas</h1>
+  <p>Frontend (Nginx) → Backend (Node.js) → Banco (PostgreSQL)</p>
+  <form id="form">
+    <input id="titulo" placeholder="Nova tarefa" required>
+    <button>Adicionar</button>
+  </form>
+  <ul id="lista"></ul>
+
+  <script>
+    async function carregar() {
+      const tarefas = await fetch('/api/tarefas').then(r => r.json());
+      document.getElementById('lista').innerHTML =
+        tarefas.map(t => `<li>${t.id}. ${t.titulo}</li>`).join('');
+    }
+
+    document.getElementById('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const campo = document.getElementById('titulo');
+      await fetch('/api/tarefas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ titulo: campo.value }),
+      });
+      campo.value = '';
+      carregar();
+    });
+
+    carregar();
+  </script>
+</body>
+</html>

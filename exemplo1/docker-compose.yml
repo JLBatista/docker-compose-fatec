@@ -1,0 +1,12 @@
+services:
+  calculadora-app:
+    build: .
+    image: ${DOCKER_USER:-altafini}/calculadora-app:latest
+    ports:
+      - "3000:3000"
+    depends_on:
+      - servico-vizinho
+
+  servico-vizinho:
+    image: alpine
+    command: sleep infinity

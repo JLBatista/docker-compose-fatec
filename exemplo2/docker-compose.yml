@@ -1,0 +1,41 @@
+services:
+  frontend:
+    build: ./frontend
+    image: ${DOCKER_USER:-altafini}/tarefas-frontend:latest
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  backend:
+    build: ./backend
+    image: ${DOCKER_USER:-altafini}/tarefas-backend:latest
+    environment:
+      DB_HOST: database
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: tarefas
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/tarefas || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  database:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: tarefas
+    volumes:
+      - ./dados:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -U postgres -d tarefas"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
